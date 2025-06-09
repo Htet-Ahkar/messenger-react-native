@@ -6,51 +6,67 @@ import {
   Text,
 } from 'react-native-paper';
 import {SafeAreaProvider, SafeAreaView} from 'react-native-safe-area-context';
+import ChatsScreen from './src/screens/chats';
+import {NativeRouter, Route, Routes} from 'react-router-native';
+import ChatScreen from './src/screens/chat';
 
-const MusicRoute = () => <Text>Music</Text>;
+interface NavRoute {
+  key: string;
+  title: string;
+  focusedIcon: string;
+}
 
-const AlbumsRoute = () => <Text>Albums</Text>;
+const ChatsRoute = () => <ChatsScreen />;
 
-const RecentsRoute = () => <Text>Recents</Text>;
+const CallsRoute = () => <Text>Calls</Text>;
 
-const NotificationsRoute = () => <Text>Notifications</Text>;
+const PeopleRoute = () => <Text>People</Text>;
+
+const StoriesRoute = () => <Text>Stories</Text>;
 
 function App(): React.JSX.Element {
   const [index, setIndex] = React.useState(0);
-  const [routes] = React.useState([
+  const [routes] = React.useState<NavRoute[]>([
     {
-      key: 'music',
-      title: 'Favorites',
-      focusedIcon: 'heart',
-      unfocusedIcon: 'heart-outline',
+      key: 'chats',
+      title: 'Chats',
+      focusedIcon: 'chat',
     },
-    {key: 'albums', title: 'Albums', focusedIcon: 'album'},
-    {key: 'recents', title: 'Recents', focusedIcon: 'history'},
-    {
-      key: 'notifications',
-      title: 'Notifications',
-      focusedIcon: 'bell',
-      unfocusedIcon: 'bell-outline',
-    },
+    {key: 'calls', title: 'Calls', focusedIcon: 'video'},
+    {key: 'people', title: 'People', focusedIcon: 'account'},
+    {key: 'stories', title: 'Stories', focusedIcon: 'book'},
   ]);
 
   const renderScene = Screens.SceneMap({
-    music: MusicRoute,
-    albums: AlbumsRoute,
-    recents: RecentsRoute,
-    notifications: NotificationsRoute,
+    chats: ChatsRoute,
+    calls: CallsRoute,
+    people: PeopleRoute,
+    stories: StoriesRoute,
   });
 
   return (
     <SafeAreaProvider>
       <PaperProvider>
-        <SafeAreaView style={styles.container}>
-          <Screens
-            navigationState={{index, routes}}
-            onIndexChange={setIndex}
-            renderScene={renderScene}
-          />
-        </SafeAreaView>
+        <NativeRouter>
+          <SafeAreaView style={styles.container}>
+            <Routes>
+              {/* Screens */}
+              <Route
+                path="/"
+                element={
+                  <Screens
+                    navigationState={{index, routes}}
+                    onIndexChange={setIndex}
+                    renderScene={renderScene}
+                  />
+                }
+              />
+
+              {/* Chat */}
+              <Route path="/chat/:chatId" element={<ChatScreen />} />
+            </Routes>
+          </SafeAreaView>
+        </NativeRouter>
       </PaperProvider>
     </SafeAreaProvider>
   );
@@ -59,7 +75,6 @@ function App(): React.JSX.Element {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    // backgroundColor: 'red',
   },
 });
 
