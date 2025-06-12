@@ -9,17 +9,21 @@ import {
 import {useNavigate} from 'react-router-native';
 import Input from '../../shared/components/Input';
 import {Button} from 'react-native-paper';
+import {useMutation} from 'react-query';
+import {NewUser} from '../../shared/auth/models';
+import {register} from '../../shared/auth/requests';
+import Loader from '../../shared/components/Loader';
 
 const RegisterScreen = () => {
-  // const registerMutation = useMutation(
-  //   (newUser: NewUser) => register(newUser),
-  //   {
-  //     onSuccess: () => {
-  //       resetForm();
-  //       navigate('/login');
-  //     },
-  //   },
-  // );
+  const registerMutation = useMutation(
+    (newUser: NewUser) => register(newUser),
+    {
+      onSuccess: () => {
+        resetForm();
+        navigate('/login');
+      },
+    },
+  );
 
   const navigate = useNavigate();
 
@@ -31,7 +35,14 @@ const RegisterScreen = () => {
   const registerHandler = () => {
     if (!firstName || !lastName || !email || !password) return;
 
-    // registerMutation.mutate({firstName, lastName, email, password});
+    registerMutation.mutate({firstName, lastName, email, password});
+  };
+
+  const resetForm = () => {
+    setFirstName('');
+    setLastName('');
+    setEmail('');
+    setPassword('');
   };
 
   return (
@@ -65,7 +76,7 @@ const RegisterScreen = () => {
         />
 
         <View style={styles.registerButtonContainer}>
-          {/* {registerMutation.isLoading ? (
+          {registerMutation.isLoading ? (
             <Loader />
           ) : (
             <Button
@@ -75,15 +86,7 @@ const RegisterScreen = () => {
               onPress={registerHandler}>
               Register
             </Button>
-          )} */}
-
-          <Button
-            style={styles.registerButton}
-            labelStyle={styles.registerButtonText}
-            mode="contained"
-            onPress={registerHandler}>
-            Register
-          </Button>
+          )}
         </View>
       </View>
 

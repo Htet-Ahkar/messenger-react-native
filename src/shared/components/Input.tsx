@@ -26,9 +26,9 @@ const Input = ({
   return (
     <TextInput
       mode={mode}
-      outlineStyle={
-        mode === 'outlined' && {borderRadius: 16, borderColor: COLOR_LIGHT_GRAY}
-      }
+      // outlineStyle={
+      //   mode === 'outlined' && {borderRadius: 16, borderColor: COLOR_LIGHT_GRAY}
+      // }
       style={{
         backgroundColor: mode === 'flat' ? COLOR_WHITE : COLOR_LIGHT_GRAY,
         width: '100%',
