@@ -8,20 +8,32 @@ import {
 } from 'react';
 
 import {useQuery} from 'react-query';
+import {useParams} from 'react-router-native';
 import SocketIOClient from 'socket.io-client';
+// import PushNotification from 'react-native-push-notification';
+// import PushNotificationIOS from '@react-native-community/push-notification-ios';
+// import BackgroundTimer from 'react-native-background-timer';
+
+// import {IP_ADDRESS} from '@env';
 
 import getFriends from '../helpers/friends';
 import {getFriendRequests} from '../../../screens/people/requests';
 import {AuthContext} from '../../auth/contexts/auth.context';
 import {UserDetails} from '../../auth/models';
 import {ActiveFriend, CallActivity, CallDetails, CallResponse} from '../models';
+import {Conversation} from '../../../screens/chat/models/Conversation';
+import {Message} from '../../../screens/chat/models/Message';
+// import {Platform} from 'react-native';
 
 export interface IFriendsContext {
   friends: ActiveFriend[];
   friend: ActiveFriend;
   isLoading: boolean;
+  conversations: Conversation[];
+  messages: Message[];
   callDetails: CallDetails | null;
   callActivity: CallActivity;
+  sendMessage: (text: string, conversationId: number) => void;
   setFriend: (friend: ActiveFriend) => void;
   setCallDetails: (callDetails: CallDetails | null) => void;
   setCallActivity: (callActivity: CallActivity) => void;
@@ -33,8 +45,11 @@ export const FriendsContext = createContext<IFriendsContext>({
   friends: [],
   friend: {} as ActiveFriend,
   isLoading: false,
+  conversations: [],
+  messages: [],
   callDetails: null,
   callActivity: CallActivity.None,
+  sendMessage: () => null,
   setFriend: () => null,
   setCallDetails: () => null,
   setCallActivity: () => null,
@@ -44,16 +59,19 @@ export const FriendsContext = createContext<IFriendsContext>({
 
 export const FriendsProvider = ({children}: {children: ReactNode}) => {
   const {isActive, jwt, isLoggedIn, userDetails} = useContext(AuthContext);
+  const {friendId} = useParams();
 
   const [friends, setFriends] = useState<ActiveFriend[]>([]);
   const [friend, setFriend] = useState<ActiveFriend>({} as ActiveFriend);
   const [isLoading, setIsLoading] = useState(false);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [callDetails, setCallDetails] = useState<CallDetails | null>(null);
   const [callActivity, setCallActivity] = useState<CallActivity>(
     CallActivity.None,
   );
 
-  const chatBaseUrl = `http://${'10.0.2.2'}:7000`;
+  const chatBaseUrl = `http://${'10.0.2.2'}:7001`;
 
   const chatSocket = useMemo(
     () =>
@@ -69,9 +87,82 @@ export const FriendsProvider = ({children}: {children: ReactNode}) => {
     [jwt, chatBaseUrl],
   );
 
+  useEffect(() => {
+    if (conversations.length > 0) return;
+
+    // chatSocket.emit('getConversations');
+    chatSocket.on('getAllConversations', (allConversations: Conversation[]) => {
+      setConversations(() => allConversations);
+    });
+
+    return () => {
+      chatSocket.off('getAllConversations');
+    };
+  }, [chatSocket, conversations]);
+
   const startCall = (details: CallDetails) => {
     chatSocket.emit('startCall', details);
   };
+
+  useEffect(() => {
+    chatSocket.on('newMessage', (message: Message) => {
+      setMessages(prevMessages => [...prevMessages, message]);
+
+      // if (Platform.OS === 'android') {
+      //   PushNotification.createChannel(
+      //     {
+      //       channelId: '1',
+      //       channelName: 'name',
+      //     },
+      //     created => console.log(`createChannel returned '${created}'`),
+      //   );
+
+      //   PushNotification.localNotification({
+      //     title: 'NEW Message - ANDROID',
+      //     message: message.message,
+      //     channelId: '1',
+      //   });
+      // } else if (Platform.OS === 'ios') {
+      //   PushNotificationIOS.addNotificationRequest({
+      //     id: '1',
+      //     title: 'NEW Message - IOS',
+      //     body: message.message,
+      //   });
+      // }
+    });
+
+    // chatSocket.on('receiveCall', (friendsCallDetails: CallDetails) => {
+    //   setCallDetails(friendsCallDetails);
+    //   setCallActivity(CallActivity.Receiving);
+    // });
+
+    // chatSocket.on('callResponse', (callResponse: ICallResponse) => {
+    //   const hasFriendAccepted = callResponse.status === CallResponse.Accepted;
+
+    //   setCallActivity(
+    //     hasFriendAccepted ? CallActivity.Accepted : CallActivity.None,
+    //   );
+    // });
+
+    return () => {
+      chatSocket.off('newMessage');
+      // chatSocket.off('receiveCall');
+      // chatSocket.off('callResponse');
+    };
+  }, [chatSocket, friends]);
+
+  // useEffect(() => {
+  //   if (!isLoggedIn || isActive) return;
+
+  //   BackgroundTimer.runBackgroundTimer(() => {
+  //     // ping server to keep ws alive in background
+  //     chatSocket.emit('ping');
+  //   }, 3000);
+
+  //   return () => {
+  //     BackgroundTimer.stopBackgroundTimer();
+  //   };
+  // }, [chatSocket, isActive, isLoggedIn]);
 
   useQuery(
     'friendRequests',
@@ -132,17 +223,10 @@ export const FriendsProvider = ({children}: {children: ReactNode}) => {
 
           if (!activeFriend) return prevFriends;
 
-          activeFriend.isActive = isFriendActive; //! I don't like this kind of mutation
+          activeFriend.isActive = isFriendActive;
 
           return updatedFriends;
         });
-
-        // This avoid mutation
-        // setFriends(prevFriends =>
-        //   prevFriends.map(f =>
-        //     f.id === id ? {...f, isActive: isFriendActive} : f,
-        //   ),
-        // );
       },
     );
 
@@ -151,6 +235,24 @@ export const FriendsProvider = ({children}: {children: ReactNode}) => {
       presenceSocket.off('friendActive');
     };
   }, [presenceSocket, isActive, userDetails]);
+
+  const sendMessageHandler = (text: string, conversationId: number) => {
+    if (!userDetails) return;
+
+    const newMessage: Message = {
+      message: text,
+      creatorId: userDetails.id,
+      conversationId,
+    };
+
+    setMessages(prevMessages => [...prevMessages, newMessage]);
+
+    chatSocket.emit('sendMessage', {
+      message: text,
+      friendId,
+      conversationId,
+    });
+  };
 
   const respondToCall = (response: CallResponse) => {
     if (!callDetails) return;
@@ -168,8 +270,12 @@ export const FriendsProvider = ({children}: {children: ReactNode}) => {
         friends,
         friend,
         isLoading,
+        conversations,
+        messages,
         callDetails,
         callActivity,
+        sendMessage: (text, conversationId) =>
+          sendMessageHandler(text, conversationId),
         setFriend,
         setCallDetails,
         setCallActivity,
